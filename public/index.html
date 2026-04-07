@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>실시간 지도 추적기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --panel: #111118;
+      --border: #1e1e2e;
+      --accent: #00ff88;
+      --accent2: #ff3366;
+      --accent3: #3366ff;
+      --text: #e0e0f0;
+      --text-dim: #666680;
+      --panel-w: 320px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: var(--panel-w);
+      min-width: var(--panel-w);
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      position: relative;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .logo h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    /* JOIN FORM */
+    #join-section {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder { color: var(--text-dim); }
+
+    .btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+    .btn-primary:hover { background: #00e67a; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--accent2);
+      border: 1px solid var(--accent2);
+      font-size: 11px;
+      padding: 6px 12px;
+    }
+    .btn-danger:hover { background: var(--accent2); color: #fff; }
+
+    /* STATUS BAR */
+    #status-bar {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #444;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+    .status-dot.error { background: var(--accent2); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    #status-text { color: var(--text-dim); flex: 1; }
+    #user-count-badge {
+      background: var(--border);
+      padding: 2px 8px;
+      border-radius: 20px;
+      color: var(--text-dim);
+      font-size: 10px;
+    }
+
+    /* LOCATION CONTROLS */
+    #location-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .location-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .location-info {
+      margin-top: 10px;
+      padding: 10px;
+      background: var(--bg);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      display: none;
+    }
+
+    .coord-value { color: var(--accent); }
+
+    /* USERS LIST */
+    #users-section {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #users-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+    .user-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .user-card:hover { border-color: rgba(255,255,255,0.15); transform: translateX(3px); }
+
+    .user-avatar {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+      color: #000;
+    }
+
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 700; truncate: clip; }
+    .user-coords {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .user-me-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(0,255,136,0.15);
+      color: var(--accent);
+    }
+
+    /* CHAT */
+    #chat-section {
+      padding: 16px 20px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    #messages {
+      height: 110px;
+      overflow-y: auto;
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .message {
+      font-size: 11px;
+      line-height: 1.4;
+      animation: slideIn 0.2s ease;
+    }
+
+    .message .msg-user { font-weight: 700; margin-right: 4px; }
+    .message .msg-text { color: var(--text-dim); }
+
+    .message.system { color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 10px; }
+
+    .chat-input-row { display: flex; gap: 8px; }
+
+    #chat-input {
+      flex: 1;
+      font-size: 12px;
+      padding: 8px 12px;
+    }
+
+    #send-btn { padding: 8px 14px; font-size: 12px; }
+
+    /* ── MAP AREA ── */
+    #map-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Map HUD */
+    #map-hud {
+      position: absolute;
+      top: 16px; right: 16px;
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .hud-card {
+      background: rgba(10,10,15,0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      pointer-events: all;
+    }
+
+    .hud-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .hud-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Toast */
+    #toast-container {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(17,17,24,0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--text);
+      animation: toastIn 0.3s ease;
+      max-width: 260px;
+    }
+
+    .toast.success { border-color: var(--accent); }
+    .toast.error { border-color: var(--accent2); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom Leaflet popup */
+    .leaflet-popup-content-wrapper {
+      background: #111118 !important;
+      border: 1px solid #1e1e2e !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+    }
+    .leaflet-popup-tip { background: #111118 !important; }
+    .leaflet-popup-content { color: #e0e0f0 !important; font-family: 'Syne', sans-serif !important; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .tracking-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(0,255,136,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0,255,136,0.2);
+    }
+
+    .tracking-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1s infinite;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-icon">🗺️</div>
+      <h1>LiveTrack</h1>
+    </div>
+    <div class="subtitle">REALTIME LOCATION SHARING</div>
+  </div>
+
+  <!-- JOIN -->
+  <div id="join-section">
+    <div class="section-label">접속 정보</div>
+    <div class="input-row">
+      <input type="text" id="username-input" placeholder="닉네임 입력..." maxlength="20" />
+      <button class="btn btn-primary" id="join-btn" onclick="joinRoom()">입장</button>
+    </div>
+    <div id="joined-info" style="display:none;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
+        <span id="joined-name" style="font-size:13px; font-weight:700;"></span>
+        <button class="btn btn-danger" onclick="leaveRoom()">나가기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">서버 연결 중...</span>
+    <span id="user-count-badge">👥 0</span>
+  </div>
+
+  <!-- LOCATION -->
+  <div id="location-section">
+    <div class="section-label">위치 공유</div>
+    <div class="location-controls">
+      <button class="btn btn-primary" id="share-btn" onclick="startSharing()" disabled>
+        📍 위치 공유 시작
+      </button>
+      <button class="btn btn-secondary" id="stop-btn" onclick="stopSharing()" style="display:none;">
+        ⏹ 중지
+      </button>
+    </div>
+    <div class="location-info" id="location-info">
+      <div>위도: <span class="coord-value" id="lat-display">-</span></div>
+      <div>경도: <span class="coord-value" id="lng-display">-</span></div>
+      <div>정확도: <span class="coord-value" id="acc-display">-</span>m</div>
+      <div>속도: <span class="coord-value" id="spd-display">-</span> km/h</div>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div id="users-section">
+    <div class="section-label">접속 중인 사용자</div>
+    <div id="users-list">
+      <div style="font-size:12px; color:var(--text-dim); font-family:'Space Mono',monospace; text-align:center; padding: 20px 0;">
+        접속한 사용자 없음
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="chat-section">
+    <div class="section-label">채팅</div>
+    <div id="messages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" class="input" placeholder="메시지..." maxlength="100" onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button class="btn btn-secondary" id="send-btn" onclick="sendMessage()">전송</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAP ── -->
+<div id="map-container">
+  <div id="map"></div>
+  <div id="map-hud">
+    <div class="hud-card">
+      <div class="hud-label">추적 상태</div>
+      <div id="tracking-status" class="hud-value" style="color:var(--text-dim);">대기 중</div>
+    </div>
+    <div class="hud-card">
+      <div class="hud-label">지도 위 사용자</div>
+      <div id="map-user-count" class="hud-value">0</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+  // ── CONFIG ──
+  const SERVER_URL = window.location.origin;
+  const UPDATE_INTERVAL = 3000; // 3 seconds
+
+  // ── STATE ──
+  let socket = null;
+  let map = null;
+  let myUserId = null;
+  let myUsername = null;
+  let myColor = null;
+  let markers = {};         // userId -> Leaflet marker
+  let accuracyCircles = {}; // userId -> Leaflet circle
+  let watchId = null;
+  let isSharing = false;
+  let isJoined = false;
+
+  // ── MAP INIT ──
+  function initMap() {
+    map = L.map('map', {
+      center: [36.3504, 127.3845], // Daejeon, Korea
+      zoom: 13,
+      zoomControl: false,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '©OpenStreetMap ©CARTO',
+      maxZoom: 19,
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+  }
+
+  // ── SOCKET INIT ──
+  function initSocket() {
+    socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      setStatus('connected', '서버 연결됨');
+    });
+
+    socket.on('disconnect', () => {
+      setStatus('', '연결 끊김');
+      isJoined = false;
+    });
+
+    socket.on('connect_error', () => {
+      setStatus('error', '연결 오류');
+    });
+
+    socket.on('join_success', (data) => {
+      myColor = data.color;
+      isJoined = true;
+      document.getElementById('join-btn').disabled = true;
+      document.getElementById('username-input').disabled = true;
+      document.getElementById('joined-info').style.display = 'block';
+      document.getElementById('joined-name').textContent = `✓ ${data.username}`;
+      document.getElementById('joined-name').style.color = data.color;
+      document.getElementById('share-btn').disabled = false;
+      showToast(`${data.username}으로 입장했습니다!`, 'success');
+    });
+
+    socket.on('initial_locations', (locations) => {
+      locations.forEach(loc => updateMarker(loc));
+      updateMapUserCount();
+    });
+
+    socket.on('location_updated', (data) => {
+      updateMarker(data);
+      updateUserCard(data);
+      updateMapUserCount();
+    });
+
+    socket.on('user_joined', (data) => {
+      addSystemMessage(`${data.username}님이 입장했습니다`);
+    });
+
+    socket.on('user_left', (data) => {
+      removeMarker(data.userId);
+      removeUserCard(data.userId);
+      updateMapUserCount();
+      addSystemMessage(`${data.username}님이 퇴장했습니다`);
+    });
+
+    socket.on('user_count', (count) => {
+      document.getElementById('user-count-badge').textContent = `👥 ${count}`;
+    });
+
+    socket.on('all_locations', (locations) => {
+      Object.keys(markers).forEach(uid => { removeMarker(uid); });
+      locations.forEach(loc => { updateMarker(loc); updateUserCard(loc); });
+      updateMapUserCount();
+    });
+
+    socket.on('new_message', (data) => {
+      addChatMessage(data);
+    });
+  }
+
+  // ── JOIN / LEAVE ──
+  function joinRoom() {
+    const username = document.getElementById('username-input').value.trim();
+    if (!username) { showToast('닉네임을 입력해주세요', 'error'); return; }
+    if (!socket?.connected) { showToast('서버에 연결되지 않았습니다', 'error'); return; }
+
+    myUserId = 'user_' + Math.random().toString(36).substr(2, 8);
+    myUsername = username;
+
+    socket.emit('join', { userId: myUserId, username });
+  }
+
+  function leaveRoom() {
+    stopSharing();
+    socket.disconnect();
+    socket.connect();
+    isJoined = false;
+    myUserId = null;
+    myUsername = null;
+    document.getElementById('join-btn').disabled = false;
+    document.getElementById('username-input').disabled = false;
+    document.getElementById('joined-info').style.display = 'none';
+    document.getElementById('share-btn').disabled = true;
+    document.getElementById('username-input').value = '';
+    document.getElementById('users-list').innerHTML = '<div style="font-size:12px;color:var(--text-dim);font-family:Space Mono,monospace;text-align:center;padding:20px 0;">접속한 사용자 없음</div>';
+    Object.keys(markers).forEach(uid => removeMarker(uid));
+    showToast('퇴장했습니다');
+  }
+
+  // ── LOCATION SHARING ──
+  function startSharing() {
+    if (!isJoined) { showToast('먼저 입장해주세요', 'error'); return; }
+    if (!navigator.geolocation) { showToast('위치 서비스를 지원하지 않습니다', 'error'); return; }
+
+    document.getElementById('share-btn').style.display = 'none';
+    document.getElementById('stop-btn').style.display = 'block';
+    document.getElementById('location-info').style.display = 'block';
+    document.getElementById('tracking-status').innerHTML = '<span class="tracking-badge"><span class="tracking-dot"></span>LIVE</span>';
+    isSharing = true;
+
+    watchId = navigator.geolocation.watchPosition(
+      onLocationSuccess,
+      onLocationError,
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+    );
+  }
+
+  function stopSharing() {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+    isSharing = false;
+    document.getElementById('share-btn').style.display = 'block';
+    document.getElementById('stop-btn').style.display = 'none';
+    document.getElementById('location-info').style.display = 'none';
+    document.getElementById('tracking-status').textContent = '대기 중';
+    document.getElementById('tracking-status').style.color = 'var(--text-dim)';
+  }
+
+  let lastSent = 0;
+  function onLocationSuccess(pos) {
+    const { latitude, longitude, accuracy, speed, heading } = pos.coords;
+    const now = Date.now();
+
+    // Update HUD
+    document.getElementById('lat-display').textContent = latitude.toFixed(5);
+    document.getElementById('lng-display').textContent = longitude.toFixed(5);
+    document.getElementById('acc-display').textContent = Math.round(accuracy);
+    document.getElementById('spd-display').textContent = speed ? (speed * 3.6).toFixed(1) : '0.0';
+
+    // Throttle sends
+    if (now - lastSent < UPDATE_INTERVAL) return;
+    lastSent = now;
+
+    socket.emit('update_location', {
+      userId: myUserId,
+      username: myUsername,
+      latitude, longitude, accuracy,
+      speed: speed ? speed * 3.6 : 0,
+      heading,
+      timestamp: now,
+    });
+  }
+
+  function onLocationError(err) {
+    console.warn('Geolocation error:', err);
+    showToast('위치를 가져올 수 없습니다: ' + err.message, 'error');
+  }
+
+  // ── MARKERS ──
+  function createCustomIcon(color, username, isMe) {
+    const initials = username.charAt(0).toUpperCase();
+    const size = isMe ? 44 : 38;
+    const ring = isMe ? `<circle cx="22" cy="22" r="20" fill="none" stroke="${color}" stroke-width="2" opacity="0.4"><animate attributeName="r" from="18" to="26" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite"/></circle>` : '';
+
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 44 44">
+        ${ring}
+        <circle cx="22" cy="22" r="17" fill="${color}" stroke="#0a0a0f" stroke-width="2.5"/>
+        <text x="22" y="27" text-anchor="middle" fill="#000" font-family="Syne,sans-serif" font-size="14" font-weight="800">${initials}</text>
+      </svg>`;
+
+    return L.divIcon({
+      html: svg,
+      className: '',
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+      popupAnchor: [0, -size/2],
+    });
+  }
+
+  function updateMarker(data) {
+    const { userId, latitude, longitude, accuracy, username, color } = data;
+    const isMe = userId === myUserId;
+    const latlng = [latitude, longitude];
+
+    if (markers[userId]) {
+      markers[userId].setLatLng(latlng);
+      if (accuracyCircles[userId]) accuracyCircles[userId].setLatLng(latlng).setRadius(accuracy || 30);
+    } else {
+      // Create accuracy circle
+      accuracyCircles[userId] = L.circle(latlng, {
+        radius: accuracy || 30,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.06,
+        opacity: 0.25,
+        weight: 1,
+      }).addTo(map);
+
+      // Create marker
+      markers[userId] = L.marker(latlng, {
+        icon: createCustomIcon(color, username, isMe),
+        zIndexOffset: isMe ? 1000 : 0,
+      })
+        .addTo(map)
+        .bindPopup(buildPopup(data));
+
+      markers[userId].on('click', () => {
+        markers[userId].openPopup();
+      });
+    }
+
+    // Update popup content
+    markers[userId].setPopupContent(buildPopup(data));
+
+    // Auto-pan to own location
+    if (isMe) map.panTo(latlng, { animate: true, duration: 0.5 });
+
+    // Update user card
+    updateUserCard(data);
+  }
+
+  function buildPopup(data) {
+    const { username, latitude, longitude, speed, accuracy, color, timestamp } = data;
+    const time = timestamp ? new Date(timestamp).toLocaleTimeString('ko-KR') : '-';
+    return `
+      <div style="font-family:Syne,sans-serif; min-width:160px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="width:28px;height:28px;border-radius:6px;background:${color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#000;">${username.charAt(0).toUpperCase()}</div>
+          <strong style="font-size:14px;">${username}</strong>
+        </div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#888;line-height:1.8;">
+          <div>📍 ${latitude.toFixed(5)}, ${longitude.toFixed(5)}</div>
+          <div>🎯 정확도: ${Math.round(accuracy || 0)}m</div>
+          <div>⚡ 속도: ${speed ? speed.toFixed(1) : '0.0'} km/h</div>
+          <div>⏱ ${time}</div>
+        </div>
+      </div>`;
+  }
+
+  function removeMarker(userId) {
+    if (markers[userId]) { map.removeLayer(markers[userId]); delete markers[userId]; }
+    if (accuracyCircles[userId]) { map.removeLayer(accuracyCircles[userId]); delete accuracyCircles[userId]; }
+  }
+
+  function updateMapUserCount() {
+    document.getElementById('map-user-count').textContent = Object.keys(markers).length;
+  }
+
+  // ── USER CARDS ──
+  const userCardData = {};
+
+  function updateUserCard(data) {
+    const { userId, username, latitude, longitude, color } = data;
+    const isMe = userId === myUserId;
+    userCardData[userId] = data;
+
+    const existing = document.getElementById(`card-${userId}`);
+    const html = `
+      <div class="user-avatar" style="background:${color}">${username.charAt(0).toUpperCase()}</div>
+      <div class="user-info">
+        <div class="user-name">${username}</div>
+        <div class="user-coords">${latitude.toFixed(4)}, ${longitude.toFixed(4)}</div>
+      </div>
+      ${isMe ? '<span class="user-me-badge">나</span>' : ''}`;
+
+    if (existing) {
+      existing.innerHTML = html;
+    } else {
+      const card = document.createElement('div');
+      card.className = 'user-card';
+      card.id = `card-${userId}`;
+      card.innerHTML = html;
+      card.onclick = () => {
+        if (markers[userId]) {
+          map.flyTo([latitude, longitude], 16, { animate: true, duration: 1 });
+          markers[userId].openPopup();
+        }
+      };
+
+      const list = document.getElementById('users-list');
+      if (list.querySelector('[style*="font-size:12px"]')) list.innerHTML = '';
+      list.appendChild(card);
+    }
+  }
+
+  function removeUserCard(userId) {
+    const el = document.getElementById(`card-${userId}`);
+    if (el) el.remove();
+    delete userCardData[userId];
+    if (document.getElementById('users-list').children.length === 0) {
+      document.getElementById('users-list').innerHTML = '<div style="font-size:12px;color:var(--text-dim);font-family:Space Mono,monospace;text-align:center;padding:20px 0;">접속한 사용자 없음</div>';
+    }
+  }
+
+  // ── CHAT ──
+  function sendMessage() {
+    if (!isJoined) { showToast('먼저 입장해주세요', 'error'); return; }
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    socket.emit('send_message', { message: msg });
+    input.value = '';
+  }
+
+  function addChatMessage(data) {
+    const el = document.createElement('div');
+    el.className = 'message';
+    el.innerHTML = `<span class="msg-user" style="color:${data.color}">${data.username}</span><span class="msg-text">${escapeHtml(data.message)}</span>`;
+    appendMessage(el);
+  }
+
+  function addSystemMessage(text) {
+    const el = document.createElement('div');
+    el.className = 'message system';
+    el.textContent = `— ${text}`;
+    appendMessage(el);
+  }
+
+  function appendMessage(el) {
+    const container = document.getElementById('messages');
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // ── UTILS ──
+  function setStatus(cls, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot' + (cls ? ' ' + cls : '');
+    document.getElementById('status-text').textContent = text;
+  }
+
+  function showToast(msg, type = '') {
+    const t = document.createElement('div');
+    t.className = 'toast' + (type ? ' ' + type : '');
+    t.textContent = msg;
+    document.getElementById('toast-container').appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── DEMO MODE (when location unavailable) ──
+  function startDemoMode() {
+    if (!isJoined || isSharing) return;
+    let angle = Math.random() * Math.PI * 2;
+    const baseLatLng = [36.3504 + (Math.random()-0.5)*0.02, 127.3845 + (Math.random()-0.5)*0.02];
+    const demo = setInterval(() => {
+      if (!isJoined) { clearInterval(demo); return; }
+      angle += (Math.random() - 0.5) * 0.3;
+      const lat = baseLatLng[0] + Math.sin(angle) * 0.003;
+      const lng = baseLatLng[1] + Math.cos(angle) * 0.003;
+      socket.emit('update_location', {
+        userId: myUserId, username: myUsername,
+        latitude: lat, longitude: lng,
+        accuracy: 20 + Math.random() * 30,
+        speed: Math.random() * 30,
+        timestamp: Date.now(),
+      });
+    }, UPDATE_INTERVAL);
+    document.getElementById('share-btn').style.display = 'none';
+    document.getElementById('stop-btn').style.display = 'block';
+    document.getElementById('tracking-status').innerHTML = '<span class="tracking-badge" style="color:#f7dc6f;border-color:rgba(247,220,111,0.3);background:rgba(247,220,111,0.1);"><span class="tracking-dot" style="background:#f7dc6f;"></span>DEMO</span>';
+    document.getElementById('stop-btn').onclick = () => { clearInterval(demo); stopSharing(); document.getElementById('stop-btn').onclick = stopSharing; };
+    isSharing = true;
+    showToast('데모 모드로 실행 중입니다', '');
+  }
+
+  // ── BOOT ──
+  document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    initSocket();
+
+    document.getElementById('username-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') joinRoom();
+    });
+
+    // Demo button (add to location controls)
+    const demoBtn = document.createElement('button');
+    demoBtn.className = 'btn btn-secondary';
+    demoBtn.textContent = '🎮 데모';
+    demoBtn.style.fontSize = '12px';
+    demoBtn.onclick = startDemoMode;
+    document.querySelector('.location-controls').appendChild(demoBtn);
+  });
+</script>
+</body>
+</html>
