@@ -21,6 +21,7 @@
       --text: #e0e0f0;
       --text-dim: #666680;
       --panel-w: 320px;
+      --toggle-size: 36px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,11 +45,67 @@
       flex-direction: column;
       z-index: 1000;
       position: relative;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                  min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.25s ease;
+      overflow: hidden;
+    }
+
+    #sidebar.collapsed {
+      width: 0;
+      min-width: 0;
+      opacity: 0;
+      border-right: none;
+    }
+
+    /* ── TOGGLE BUTTON ── */
+    #sidebar-toggle {
+      position: fixed;
+      top: 50%;
+      left: var(--panel-w);
+      transform: translateY(-50%);
+      z-index: 2000;
+      width: var(--toggle-size);
+      height: 56px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: none;
+      border-radius: 0 10px 10px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s,
+                  border-color 0.2s;
+      color: var(--text-dim);
+    }
+
+    #sidebar-toggle:hover {
+      background: var(--border);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    #sidebar-toggle.collapsed {
+      left: 0;
+      border-left: 1px solid var(--border);
+      border-radius: 0 10px 10px 0;
+    }
+
+    #sidebar-toggle svg {
+      transition: transform 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    #sidebar-toggle.collapsed svg {
+      transform: rotate(180deg);
     }
 
     .sidebar-header {
       padding: 24px 20px 20px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
     .logo {
@@ -64,6 +121,7 @@
       border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
       font-size: 16px;
+      flex-shrink: 0;
     }
 
     .logo h1 {
@@ -71,6 +129,7 @@
       font-weight: 800;
       letter-spacing: -0.5px;
       color: #fff;
+      white-space: nowrap;
     }
 
     .subtitle {
@@ -78,12 +137,14 @@
       font-size: 10px;
       color: var(--text-dim);
       letter-spacing: 1px;
+      white-space: nowrap;
     }
 
     /* JOIN FORM */
     #join-section {
       padding: 20px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
     .section-label {
@@ -93,6 +154,7 @@
       letter-spacing: 2px;
       text-transform: uppercase;
       margin-bottom: 12px;
+      white-space: nowrap;
     }
 
     .input-row {
@@ -112,6 +174,7 @@
       font-size: 13px;
       outline: none;
       transition: border-color 0.2s;
+      min-width: 0;
     }
 
     input[type="text"]:focus { border-color: var(--accent); }
@@ -127,6 +190,8 @@
       cursor: pointer;
       transition: all 0.2s;
       letter-spacing: 0.3px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .btn-primary {
@@ -161,6 +226,7 @@
       gap: 10px;
       font-family: 'Space Mono', monospace;
       font-size: 11px;
+      flex-shrink: 0;
     }
 
     .status-dot {
@@ -178,25 +244,28 @@
       50% { opacity: 0.5; }
     }
 
-    #status-text { color: var(--text-dim); flex: 1; }
+    #status-text { color: var(--text-dim); flex: 1; white-space: nowrap; overflow: hidden; }
     #user-count-badge {
       background: var(--border);
       padding: 2px 8px;
       border-radius: 20px;
       color: var(--text-dim);
       font-size: 10px;
+      white-space: nowrap;
     }
 
     /* LOCATION CONTROLS */
     #location-section {
       padding: 16px 20px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
     .location-controls {
       display: flex;
       gap: 8px;
       margin-top: 10px;
+      flex-wrap: wrap;
     }
 
     .location-info {
@@ -255,7 +324,7 @@
     }
 
     .user-info { flex: 1; min-width: 0; }
-    .user-name { font-size: 13px; font-weight: 700; truncate: clip; }
+    .user-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .user-coords {
       font-family: 'Space Mono', monospace;
       font-size: 9px;
@@ -270,12 +339,14 @@
       border-radius: 4px;
       background: rgba(0,255,136,0.15);
       color: var(--accent);
+      flex-shrink: 0;
     }
 
     /* CHAT */
     #chat-section {
       padding: 16px 20px 20px;
       border-top: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
     #messages {
@@ -295,17 +366,11 @@
 
     .message .msg-user { font-weight: 700; margin-right: 4px; }
     .message .msg-text { color: var(--text-dim); }
-
     .message.system { color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 10px; }
 
     .chat-input-row { display: flex; gap: 8px; }
 
-    #chat-input {
-      flex: 1;
-      font-size: 12px;
-      padding: 8px 12px;
-    }
-
+    #chat-input { flex: 1; font-size: 12px; padding: 8px 12px; }
     #send-btn { padding: 8px 14px; font-size: 12px; }
 
     /* ── MAP AREA ── */
@@ -313,12 +378,10 @@
       flex: 1;
       position: relative;
       overflow: hidden;
+      transition: flex 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    #map {
-      width: 100%;
-      height: 100%;
-    }
+    #map { width: 100%; height: 100%; }
 
     /* Map HUD */
     #map-hud {
@@ -491,11 +554,18 @@
     <div class="section-label">채팅</div>
     <div id="messages"></div>
     <div class="chat-input-row">
-      <input type="text" id="chat-input" class="input" placeholder="메시지..." maxlength="100" onkeydown="if(event.key==='Enter') sendMessage()" />
+      <input type="text" id="chat-input" placeholder="메시지..." maxlength="100" onkeydown="if(event.key==='Enter') sendMessage()" />
       <button class="btn btn-secondary" id="send-btn" onclick="sendMessage()">전송</button>
     </div>
   </div>
 </div>
+
+<!-- ── SIDEBAR TOGGLE ── -->
+<button id="sidebar-toggle" onclick="toggleSidebar()" title="사이드바 열기/닫기">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
 
 <!-- ── MAP ── -->
 <div id="map-container">
@@ -517,7 +587,7 @@
 <script>
   // ── CONFIG ──
   const SERVER_URL = window.location.origin;
-  const UPDATE_INTERVAL = 3000; // 3 seconds
+  const UPDATE_INTERVAL = 3000;
 
   // ── STATE ──
   let socket = null;
@@ -525,16 +595,39 @@
   let myUserId = null;
   let myUsername = null;
   let myColor = null;
-  let markers = {};         // userId -> Leaflet marker
-  let accuracyCircles = {}; // userId -> Leaflet circle
+  let markers = {};
+  let accuracyCircles = {};
   let watchId = null;
   let isSharing = false;
   let isJoined = false;
+  let sidebarOpen = true;
+
+  // ── SIDEBAR TOGGLE ──
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    sidebarOpen = !sidebarOpen;
+
+    if (sidebarOpen) {
+      sidebar.classList.remove('collapsed');
+      toggle.classList.remove('collapsed');
+      toggle.style.left = 'var(--panel-w)';
+      toggle.title = '사이드바 닫기';
+    } else {
+      sidebar.classList.add('collapsed');
+      toggle.classList.add('collapsed');
+      toggle.style.left = '0';
+      toggle.title = '사이드바 열기';
+    }
+
+    // Leaflet 지도 크기 재계산
+    setTimeout(() => { if (map) map.invalidateSize(); }, 320);
+  }
 
   // ── MAP INIT ──
   function initMap() {
     map = L.map('map', {
-      center: [36.3504, 127.3845], // Daejeon, Korea
+      center: [36.3504, 127.3845],
       zoom: 13,
       zoomControl: false,
     });
@@ -551,18 +644,9 @@
   function initSocket() {
     socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
 
-    socket.on('connect', () => {
-      setStatus('connected', '서버 연결됨');
-    });
-
-    socket.on('disconnect', () => {
-      setStatus('', '연결 끊김');
-      isJoined = false;
-    });
-
-    socket.on('connect_error', () => {
-      setStatus('error', '연결 오류');
-    });
+    socket.on('connect', () => setStatus('connected', '서버 연결됨'));
+    socket.on('disconnect', () => { setStatus('', '연결 끊김'); isJoined = false; });
+    socket.on('connect_error', () => setStatus('error', '연결 오류'));
 
     socket.on('join_success', (data) => {
       myColor = data.color;
@@ -587,9 +671,7 @@
       updateMapUserCount();
     });
 
-    socket.on('user_joined', (data) => {
-      addSystemMessage(`${data.username}님이 입장했습니다`);
-    });
+    socket.on('user_joined', (data) => addSystemMessage(`${data.username}님이 입장했습니다`));
 
     socket.on('user_left', (data) => {
       removeMarker(data.userId);
@@ -603,14 +685,12 @@
     });
 
     socket.on('all_locations', (locations) => {
-      Object.keys(markers).forEach(uid => { removeMarker(uid); });
+      Object.keys(markers).forEach(uid => removeMarker(uid));
       locations.forEach(loc => { updateMarker(loc); updateUserCard(loc); });
       updateMapUserCount();
     });
 
-    socket.on('new_message', (data) => {
-      addChatMessage(data);
-    });
+    socket.on('new_message', (data) => addChatMessage(data));
   }
 
   // ── JOIN / LEAVE ──
@@ -618,10 +698,8 @@
     const username = document.getElementById('username-input').value.trim();
     if (!username) { showToast('닉네임을 입력해주세요', 'error'); return; }
     if (!socket?.connected) { showToast('서버에 연결되지 않았습니다', 'error'); return; }
-
     myUserId = 'user_' + Math.random().toString(36).substr(2, 8);
     myUsername = username;
-
     socket.emit('join', { userId: myUserId, username });
   }
 
@@ -654,17 +732,13 @@
     isSharing = true;
 
     watchId = navigator.geolocation.watchPosition(
-      onLocationSuccess,
-      onLocationError,
+      onLocationSuccess, onLocationError,
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
     );
   }
 
   function stopSharing() {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-      watchId = null;
-    }
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     isSharing = false;
     document.getElementById('share-btn').style.display = 'block';
     document.getElementById('stop-btn').style.display = 'none';
@@ -677,24 +751,16 @@
   function onLocationSuccess(pos) {
     const { latitude, longitude, accuracy, speed, heading } = pos.coords;
     const now = Date.now();
-
-    // Update HUD
     document.getElementById('lat-display').textContent = latitude.toFixed(5);
     document.getElementById('lng-display').textContent = longitude.toFixed(5);
     document.getElementById('acc-display').textContent = Math.round(accuracy);
     document.getElementById('spd-display').textContent = speed ? (speed * 3.6).toFixed(1) : '0.0';
-
-    // Throttle sends
     if (now - lastSent < UPDATE_INTERVAL) return;
     lastSent = now;
-
     socket.emit('update_location', {
-      userId: myUserId,
-      username: myUsername,
+      userId: myUserId, username: myUsername,
       latitude, longitude, accuracy,
-      speed: speed ? speed * 3.6 : 0,
-      heading,
-      timestamp: now,
+      speed: speed ? speed * 3.6 : 0, heading, timestamp: now,
     });
   }
 
@@ -708,81 +774,32 @@
     const initials = username.charAt(0).toUpperCase();
     const size = isMe ? 44 : 38;
     const ring = isMe ? `<circle cx="22" cy="22" r="20" fill="none" stroke="${color}" stroke-width="2" opacity="0.4"><animate attributeName="r" from="18" to="26" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite"/></circle>` : '';
-
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 44 44">
-        ${ring}
-        <circle cx="22" cy="22" r="17" fill="${color}" stroke="#0a0a0f" stroke-width="2.5"/>
-        <text x="22" y="27" text-anchor="middle" fill="#000" font-family="Syne,sans-serif" font-size="14" font-weight="800">${initials}</text>
-      </svg>`;
-
-    return L.divIcon({
-      html: svg,
-      className: '',
-      iconSize: [size, size],
-      iconAnchor: [size/2, size/2],
-      popupAnchor: [0, -size/2],
-    });
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 44 44">${ring}<circle cx="22" cy="22" r="17" fill="${color}" stroke="#0a0a0f" stroke-width="2.5"/><text x="22" y="27" text-anchor="middle" fill="#000" font-family="Syne,sans-serif" font-size="14" font-weight="800">${initials}</text></svg>`;
+    return L.divIcon({ html: svg, className: '', iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2] });
   }
 
   function updateMarker(data) {
     const { userId, latitude, longitude, accuracy, username, color } = data;
     const isMe = userId === myUserId;
     const latlng = [latitude, longitude];
-
     if (markers[userId]) {
       markers[userId].setLatLng(latlng);
       if (accuracyCircles[userId]) accuracyCircles[userId].setLatLng(latlng).setRadius(accuracy || 30);
     } else {
-      // Create accuracy circle
-      accuracyCircles[userId] = L.circle(latlng, {
-        radius: accuracy || 30,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.06,
-        opacity: 0.25,
-        weight: 1,
-      }).addTo(map);
-
-      // Create marker
-      markers[userId] = L.marker(latlng, {
-        icon: createCustomIcon(color, username, isMe),
-        zIndexOffset: isMe ? 1000 : 0,
-      })
-        .addTo(map)
-        .bindPopup(buildPopup(data));
-
-      markers[userId].on('click', () => {
-        markers[userId].openPopup();
-      });
+      accuracyCircles[userId] = L.circle(latlng, { radius: accuracy || 30, color, fillColor: color, fillOpacity: 0.06, opacity: 0.25, weight: 1 }).addTo(map);
+      markers[userId] = L.marker(latlng, { icon: createCustomIcon(color, username, isMe), zIndexOffset: isMe ? 1000 : 0 })
+        .addTo(map).bindPopup(buildPopup(data));
+      markers[userId].on('click', () => markers[userId].openPopup());
     }
-
-    // Update popup content
     markers[userId].setPopupContent(buildPopup(data));
-
-    // Auto-pan to own location
     if (isMe) map.panTo(latlng, { animate: true, duration: 0.5 });
-
-    // Update user card
     updateUserCard(data);
   }
 
   function buildPopup(data) {
     const { username, latitude, longitude, speed, accuracy, color, timestamp } = data;
     const time = timestamp ? new Date(timestamp).toLocaleTimeString('ko-KR') : '-';
-    return `
-      <div style="font-family:Syne,sans-serif; min-width:160px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <div style="width:28px;height:28px;border-radius:6px;background:${color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#000;">${username.charAt(0).toUpperCase()}</div>
-          <strong style="font-size:14px;">${username}</strong>
-        </div>
-        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#888;line-height:1.8;">
-          <div>📍 ${latitude.toFixed(5)}, ${longitude.toFixed(5)}</div>
-          <div>🎯 정확도: ${Math.round(accuracy || 0)}m</div>
-          <div>⚡ 속도: ${speed ? speed.toFixed(1) : '0.0'} km/h</div>
-          <div>⏱ ${time}</div>
-        </div>
-      </div>`;
+    return `<div style="font-family:Syne,sans-serif;min-width:160px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="width:28px;height:28px;border-radius:6px;background:${color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#000;">${username.charAt(0).toUpperCase()}</div><strong style="font-size:14px;">${username}</strong></div><div style="font-family:'Space Mono',monospace;font-size:10px;color:#888;line-height:1.8;"><div>📍 ${latitude.toFixed(5)}, ${longitude.toFixed(5)}</div><div>🎯 정확도: ${Math.round(accuracy || 0)}m</div><div>⚡ 속도: ${speed ? speed.toFixed(1) : '0.0'} km/h</div><div>⏱ ${time}</div></div></div>`;
   }
 
   function removeMarker(userId) {
@@ -801,16 +818,8 @@
     const { userId, username, latitude, longitude, color } = data;
     const isMe = userId === myUserId;
     userCardData[userId] = data;
-
     const existing = document.getElementById(`card-${userId}`);
-    const html = `
-      <div class="user-avatar" style="background:${color}">${username.charAt(0).toUpperCase()}</div>
-      <div class="user-info">
-        <div class="user-name">${username}</div>
-        <div class="user-coords">${latitude.toFixed(4)}, ${longitude.toFixed(4)}</div>
-      </div>
-      ${isMe ? '<span class="user-me-badge">나</span>' : ''}`;
-
+    const html = `<div class="user-avatar" style="background:${color}">${username.charAt(0).toUpperCase()}</div><div class="user-info"><div class="user-name">${username}</div><div class="user-coords">${latitude.toFixed(4)}, ${longitude.toFixed(4)}</div></div>${isMe ? '<span class="user-me-badge">나</span>' : ''}`;
     if (existing) {
       existing.innerHTML = html;
     } else {
@@ -818,13 +827,7 @@
       card.className = 'user-card';
       card.id = `card-${userId}`;
       card.innerHTML = html;
-      card.onclick = () => {
-        if (markers[userId]) {
-          map.flyTo([latitude, longitude], 16, { animate: true, duration: 1 });
-          markers[userId].openPopup();
-        }
-      };
-
+      card.onclick = () => { if (markers[userId]) { map.flyTo([latitude, longitude], 16, { animate: true, duration: 1 }); markers[userId].openPopup(); } };
       const list = document.getElementById('users-list');
       if (list.querySelector('[style*="font-size:12px"]')) list.innerHTML = '';
       list.appendChild(card);
@@ -889,7 +892,7 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ── DEMO MODE (when location unavailable) ──
+  // ── DEMO MODE ──
   function startDemoMode() {
     if (!isJoined || isSharing) return;
     let angle = Math.random() * Math.PI * 2;
@@ -897,11 +900,10 @@
     const demo = setInterval(() => {
       if (!isJoined) { clearInterval(demo); return; }
       angle += (Math.random() - 0.5) * 0.3;
-      const lat = baseLatLng[0] + Math.sin(angle) * 0.003;
-      const lng = baseLatLng[1] + Math.cos(angle) * 0.003;
       socket.emit('update_location', {
         userId: myUserId, username: myUsername,
-        latitude: lat, longitude: lng,
+        latitude: baseLatLng[0] + Math.sin(angle) * 0.003,
+        longitude: baseLatLng[1] + Math.cos(angle) * 0.003,
         accuracy: 20 + Math.random() * 30,
         speed: Math.random() * 30,
         timestamp: Date.now(),
@@ -924,7 +926,6 @@
       if (e.key === 'Enter') joinRoom();
     });
 
-    // Demo button (add to location controls)
     const demoBtn = document.createElement('button');
     demoBtn.className = 'btn btn-secondary';
     demoBtn.textContent = '🎮 데모';
